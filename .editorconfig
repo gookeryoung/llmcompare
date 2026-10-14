@@ -1,0 +1,31 @@
+# EditorConfig —— 跨编辑器统一基础风格
+# https://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Makefile 的配方必须以制表符缩进，否则 make 直接报 "missing separator"
+[Makefile]
+indent_style = tab
+
+# 用 4 空格缩进的语言（保留各自的既有风格）
+[*.py]
+indent_size = 4
+
+# Markdown 行尾两空格表示换行，不能裁剪
+[*.md]
+trim_trailing_whitespace = false
+
+# Windows 脚本保持 CRLF
+[*.{bat,cmd,ps1}]
+end_of_line = crlf
+
+# 锁文件与快照不参与风格约束
+[{pnpm-lock.yaml,package-lock.json}]
+insert_final_newline = true

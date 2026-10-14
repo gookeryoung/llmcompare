@@ -9,9 +9,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Store } from './store.mjs';
 import { createApi } from './api.mjs';
+import { loadEnv } from './env.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
+// 先加载 .env（已存在的真实环境变量优先），再解析下面的配置项
+loadEnv(path.join(ROOT, '.env'));
 const WEB_DIST = path.join(ROOT, 'web', 'dist');
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const PORT = Number(process.env.PORT || 8787);
@@ -106,6 +109,21 @@ const server = http.createServer(async (req, res) => {
       res.end();
     }
   }
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n  ✗ 端口 ${PORT} 已被占用，服务无法启动。`);
+    console.error(`    查看占用者：${process.platform === 'win32' ? `netstat -ano | findstr :${PORT}` : `lsof -iTCP:${PORT} -sTCP:LISTEN`}`);
+    console.error(`    一键释放：  pnpm run kill-port   （或 make kill-port）`);
+    console.error(`    换个端口：  PORT=8788 pnpm start\n`);
+    process.exit(1);
+  }
+  if (err.code === 'EACCES') {
+    console.error(`\n  ✗ 没有权限绑定 ${HOST}:${PORT}（1024 以下端口通常需要管理员权限）。\n`);
+    process.exit(1);
+  }
+  throw err;
 });
 
 server.listen(PORT, HOST, () => {

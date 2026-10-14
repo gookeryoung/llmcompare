@@ -2,7 +2,7 @@
  * HTTP API 路由层（零依赖，手写极简路由器）。
  */
 import { streamChat, listUpstreamModels, testConnection } from './adapters.mjs';
-import { newId, nowIso } from './store.mjs';
+import { nowIso } from './store.mjs';
 
 /* ------------------------------ 基础工具 ------------------------------ */
 
@@ -458,7 +458,7 @@ export function createApi(store) {
     if (!bankId) throw Object.assign(new Error('缺少目标题库'), { status: 400 });
     if (!store.find('banks', bankId)) throw Object.assign(new Error('题库不存在'), { status: 404 });
     const raw = String(body.content || '');
-    let items = [];
+    let items;
     if ((body.format || 'json') === 'csv') {
       const rows = parseCsv(raw);
       const header = rows.shift()?.map((h) => h.trim()) || [];

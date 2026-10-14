@@ -3,7 +3,7 @@ import type { JudgeRankingItem, Metrics } from '../types';
 import { PROVIDER_BADGE, PROVIDER_LABEL, formatCost, formatMs, formatNumber, formatTokens } from '../lib/format';
 import { Badge, Bar, Button, CopyButton, Spinner, StarRating } from './ui';
 import { Markdown } from './Markdown';
-import { IconAlert, IconCheck, IconClock, IconCoin, IconGauge, IconRefresh, IconTrash, IconZap } from './Icons';
+import { IconAlert, IconCheck, IconRefresh, IconTrash, IconZap } from './Icons';
 
 export interface LiveResult {
   modelId: string;

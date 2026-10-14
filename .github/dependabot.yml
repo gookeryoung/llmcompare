@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    commit-message:
+      prefix: 'chore(deps)'
+    # 主版本升级往往伴随破坏性变更，交给人工评估，不自动开 PR
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+    groups:
+      eslint:
+        patterns: ['eslint*', '@eslint/*', 'typescript-eslint', 'globals']
+      testing:
+        patterns: ['vitest', '@vitest/*']
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'chore(ci)'

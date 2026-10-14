@@ -3,14 +3,13 @@ import { api, streamRequest } from '../api';
 import { useApp } from '../state';
 import type { Metrics, ModelConfig, Question } from '../types';
 import { PROVIDER_BADGE, PROVIDER_LABEL, downloadFile, formatCost, formatMs, formatNumber, formatTokens, stamp } from '../lib/format';
-import { Badge, Button, Empty, Field, Modal, Segmented, Spinner, Switch, useConfirm } from '../components/ui';
+import { Badge, Button, Empty, Field, Segmented, Switch, useConfirm } from '../components/ui';
 import { JudgePanel, MetricsTable, ResultColumn, statusBadge, type LiveResult } from '../components/ResultGrid';
 import {
   IconColumns,
   IconDownload,
   IconGauge,
   IconPlay,
-  IconRefresh,
   IconSave,
   IconScale,
   IconSliders,

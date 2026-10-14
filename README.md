@@ -25,23 +25,67 @@
 
 ## 快速开始
 
-要求 Node.js ≥ 20.19。
+要求 Node.js ≥ 20.19，包管理器为 pnpm（版本见 `package.json` 的 `packageManager`）。
 
 ```bash
-pnpm install         # 安装依赖
-pnpm build           # 构建前端
-pnpm start           # 启动服务
+make sync            # 或 pnpm install --frozen-lockfile
+make build           # 构建前端产物到 web/dist
+make start           # 启动服务
 ```
 
-打开 <http://127.0.0.1:8787> 即可。
-
-> 也支持 npm：`npm install && npm run build && npm start`（仓库以 `pnpm-lock.yaml` 为准，用 npm 时会重新解析依赖并生成 `package-lock.json`）。
-
-开发模式（前端热更新，后端自动重启需手动）：
+打开 <http://127.0.0.1:8787> 即可。首次接触建议先跑一次体检：
 
 ```bash
-pnpm dev             # API :8787 + Vite :5173
+make doctor          # Node / pnpm / 依赖 / 数据目录 / 端口 / 无头浏览器
+make help            # 列出全部可用命令
 ```
+
+> 也支持 npm（`npm install && npm run build && npm start`），但仓库以 `pnpm-lock.yaml` 为唯一锁文件。
+
+开发模式（前端热更新）：
+
+```bash
+make dev             # API :8787 + Vite :5173
+```
+
+### 常用命令
+
+| 命令 | 说明 |
+| --- | --- |
+| `make help` | 列出全部命令（由 `## ` 注释自动渲染） |
+| `make sync` / `make s` | 按 lockfile 安装依赖 |
+| `make dev` / `make d` | 开发模式：API + Vite 热更新 |
+| `make build` / `make b` | 构建前端产物 |
+| `make start` / `make serve` | 启动生产服务 |
+| `make doctor` | 环境体检 |
+| `make typecheck` / `make tc` | TypeScript 类型检查 |
+| `make lint` / `make l` | ESLint 检查（`make lint-fix` 自动修复） |
+| `make test-unit` / `make u` | 单元测试 + 覆盖率门槛 |
+| `make test-api` / `make ta` | 接口端到端（自动起隔离实例） |
+| `make test-ui` / `make tu` | 浏览器 UI 端到端（自动构建 + 隔离实例） |
+| `make test` / `make t` | 全部测试 |
+| `make check-fast` / `make cf` | 快速静态门禁（类型 + 风格） |
+| `make check` | 全量门禁（静态 + 单元 + 接口 + UI） |
+| `make kill-port` | 释放被占用的端口（`make kill-port PORT=8788`） |
+| `make clean` / `make c` | 清理构建产物与缓存（**绝不动 `data/`**） |
+| `make shots` | 重新生成文档截图 |
+| `make push` | 推送当前分支与标签到所有远程 |
+
+### 配置
+
+| 文件 | 作用 |
+| --- | --- |
+| `Makefile` | 命令编排；复杂逻辑下沉到 `scripts/*.mjs` |
+| `.env.example` | `PORT` / `HOST` / `DATA_DIR` / `CHROME_PATH` 模板，复制为 `.env` 生效 |
+| `.npmrc` | 依赖源固定 npmmirror（与 lockfile 中的 tarball URL 一致） |
+| `pnpm-workspace.yaml` | 批准 esbuild 的安装脚本（pnpm 10+ 默认拦截） |
+| `eslint.config.js` | ESLint 扁平配置，覆盖前端 React 与 Node 脚本 |
+| `vitest.config.ts` | 单元测试与覆盖率门槛（纯逻辑层 85%） |
+| `.pre-commit-config.yaml` | 提交前钩子：ESLint / 类型检查 / 接口冒烟 |
+| `.github/workflows/ci.yml` | CI：装依赖 → 类型 → 风格 → 单元 → 接口 → 浏览器 UI |
+| `Dockerfile` | 多阶段构建；运行阶段零 `node_modules`（服务端无运行时依赖） |
+| `CONTEXT.md` | 领域词汇表与关键取舍 |
+| `docs/adr/` | 架构决策记录 |
 
 ### 第一次使用建议
 
@@ -71,24 +115,34 @@ pnpm dev             # API :8787 + Vite :5173
 ## 目录结构
 
 ```
-server/                 零依赖 Node 服务
-  index.mjs             HTTP 服务 + 静态资源托管 + SPA 回退
+server/                 零依赖 Node 服务（无任何运行时依赖）
+  index.mjs             HTTP 服务 + 静态托管 + SPA 回退 + .env 加载
+  env.mjs               极简 .env 解析（不覆盖已有环境变量）
   api.mjs               路由层（模型/会话/题库/题目/评测/裁判/统计/导出）
   adapters.mjs          各家协议的流式适配，统一归一化为同一种事件流
   store.mjs             JSON 持久化（防抖 + 原子写入）
 web/                    React + TypeScript 前端
   src/pages/            概览 / 模型接入 / 对话 / 题库管理 / 横向对比 / 评测记录
   src/components/       通用组件、Markdown 渲染、结果列与指标面板
-  src/lib/              格式化、服务商预置
+  src/lib/              格式化、服务商预置（含单元测试）
 scripts/
   dev.mjs               同时拉起 API 与 Vite
+  with-server.mjs       测试夹具：隔离端口 + .tmp/e2e-data 拉起服务
   smoke.mjs             接口层端到端测试（33 项）
   ui-check.mjs          无头浏览器真实交互测试（25 项）
   screenshot.mjs        生成文档截图
-pnpm-workspace.yaml     已批准 esbuild 的安装脚本（见下方说明）
+  doctor.mjs            环境体检
+  clean.mjs / kill-port.mjs / push.mjs / help.mjs
+  lib/chrome.mjs        跨平台定位无头浏览器
+docs/
+  screenshots/          界面截图
+  adr/                  架构决策记录
 data/                   运行时数据（首次启动自动创建，已 gitignore）
   models.json banks.json questions.json conversations.json runs.json settings.json
 ```
+
+配置与协作文件：`Makefile`、`eslint.config.js`、`vitest.config.ts`、`.editorconfig`、`.gitattributes`、
+`.npmrc`、`.env.example`、`.pre-commit-config.yaml`、`.github/workflows/ci.yml`、`Dockerfile`、`CONTEXT.md`。
 
 ---
 
@@ -110,14 +164,24 @@ data/                   运行时数据（首次启动自动创建，已 gitigno
 
 ## 测试与验证
 
+测试自带服务实例，**无需手动启动服务，也不会读写真实 `data/`**：
+
 ```bash
-pnpm start           # 另开一个终端先启动服务
-pnpm test            # 类型检查 + 接口测试 + 浏览器 UI 测试
+make test            # 单元 + 接口 + 浏览器 UI
+make check           # 再加上类型检查与 ESLint（CI 等价门禁）
+make check-fast      # 只做类型与风格，开发中反复跑
 ```
 
-- `pnpm test:api` —— 33 项接口测试：健康检查、模型 CRUD 与密钥脱敏、流式对话、会话持久化、题库与 CSV/JSON 导入、三种格式导出、三模型并行对比、AI 裁判结构化评分、评测记录增改查、统计汇总、错误码与上游异常透传，并在结束后清理测试数据。
-- `pnpm test:ui` —— 25 项浏览器测试（Chrome DevTools Protocol 真实点击/输入）：页面挂载、模型多选、从题库选题、并行流式渲染、指标区、星级评分、备注、AI 裁判回填、三种视图切换、保存记录、记录详情、对话收发、题库浏览、模型预置回填、明暗主题、窄屏响应式。测试只操作自己创建的 3 个模型，不会影响你已有的配置。
-- `pnpm shots` —— 重新生成 `docs/screenshots/` 下的截图。
+隔离由 `scripts/with-server.mjs` 实现：临时占用一个空闲端口，并把 `DATA_DIR` 指向 `.tmp/e2e-data`，
+因此测试不会撞上你正在跑的 `:8787`，也不会看到或改动你的模型配置与密钥。
+
+| 层 | 命令 | 覆盖内容 |
+| --- | --- | --- |
+| 单元 | `make test-unit` | `web/src/lib/**` 纯逻辑 + 服务端 CSV 编解码、地址归一化；覆盖率门槛 85% |
+| 接口 | `make test-api` | 33 项：健康检查、模型 CRUD 与密钥脱敏、流式对话、会话持久化、题库与 CSV/JSON 导入、三种导出格式、三模型并行对比、AI 裁判结构化评分、评测记录增改查、统计汇总、错误码与上游异常透传 |
+| 浏览器 | `make test-ui` | 25 项（CDP 真实点击/输入）：页面挂载、模型多选、从题库选题、并行流式渲染、指标区、星级评分、备注、AI 裁判回填、三种视图切换、保存记录、记录详情、对话收发、题库浏览、模型预置回填、明暗主题、窄屏响应式 |
+
+`make shots` 会在同一个隔离实例上重新生成 `docs/screenshots/` 下的截图。
 
 ---
 
@@ -147,3 +211,16 @@ allowBuilds:
 
 **Q：AI 裁判用的是哪个模型？**
 在「横向对比」工具栏右侧的「裁判模型」下拉里选择。建议选用能力较强、且与被测模型不同的模型。裁判会被要求只输出 JSON，若输出无法解析，界面会保留原始输出供查看。
+
+**Q：启动时报 `EADDRINUSE: address already in use 127.0.0.1:8787`？**
+多半是上一次的服务没退干净。先 `make kill-port` 一键释放，再 `make start`；或换个端口 `PORT=8788 make start`。
+注意 `pnpm start` 被强制中断时，node 子进程可能仍持有端口——以后请在运行它的终端按 `Ctrl+C` 优雅退出。
+
+**Q：没有 `make` 怎么办？**
+`Makefile` 只是编排层，所有动作都能用等价的 `pnpm run <script>` 执行（见 `package.json` 的 `scripts`）。
+Windows 上想要 `make`，可用 `choco install make` 或 [Gow](https://github.com/bmatcuk/gow)；仓库里的 Makefile 已兼容 GNU Make 3.81 与 POSIX sh。
+
+**Q：`make test:ui` 提示找不到浏览器？**
+脚本按 `CHROME_PATH` → 各平台常见安装路径的顺序查找 Chrome/Edge。装了浏览器仍找不到时，显式指定即可：
+`CHROME_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe" make test-ui`。
+完全没有浏览器时会跳过 UI 测试（不计为失败），其余门禁照常执行。

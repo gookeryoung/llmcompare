@@ -16,7 +16,7 @@ import {
 } from '../components/Icons';
 
 export default function RunsPage() {
-  const { pushToast, setCompareDraft, navigate, settings, modelById, enabledModels } = useApp();
+  const { pushToast, setCompareDraft, navigate, modelById } = useApp();
   const confirm = useConfirm();
   const [list, setList] = useState<RunSummary[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,26 +1,21 @@
 /**
  * 生成文档用截图：驱动无头浏览器真实操作页面并截图到 docs/screenshots/。
- * 运行：node scripts/screenshot.mjs   （需要先启动服务：node server/index.mjs）
+ * 运行：pnpm run shots（由 scripts/with-server.mjs 拉起隔离实例并通过 BASE 注入地址）
+ *      直接 `node scripts/screenshot.mjs` 则打默认 :8787。
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { findChrome, chromeArgs } from './lib/chrome.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8787';
-const PORT = 9334;
+const PORT = Number(process.env.CDP_PORT || 9334);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'docs', 'screenshots');
 const WIDTH = 1600;
 const HEIGHT = 1000;
-
-const CHROME_CANDIDATES = [
-  path.join(process.env.LOCALAPPDATA || '', 'Google/Chrome/Application/chrome.exe'),
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  path.join(process.env['ProgramFiles(x86)'] || '', 'Microsoft/Edge/Application/msedge.exe'),
-];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const clickByText = (selector, text) => `(() => {
@@ -70,7 +65,7 @@ class CDP {
   async waitFor(expression, label, timeout = 30000) {
     const deadline = Date.now() + timeout;
     for (;;) {
-      let v = false;
+      let v;
       try {
         v = await this.eval(expression);
       } catch {
@@ -97,9 +92,9 @@ async function api(pathname, init) {
   return text ? JSON.parse(text) : null;
 }
 
-const chromePath = CHROME_CANDIDATES.find((p) => p && fs.existsSync(p));
+const chromePath = findChrome();
 if (!chromePath) {
-  console.error('未找到 Chrome / Edge');
+  console.error('未找到 Chrome / Edge，可用 CHROME_PATH 显式指定。');
   process.exit(1);
 }
 
@@ -110,11 +105,11 @@ let child;
 let cdp;
 
 try {
-  for (const [i, m] of [
+  for (const m of [
     { name: '模拟模型 · 均衡', model: 'mock-balanced', mockFlavor: 'balanced', color: '#6366f1' },
     { name: '模拟模型 · 简洁', model: 'mock-concise', mockFlavor: 'concise', color: '#22d3ee' },
     { name: '模拟模型 · 详尽', model: 'mock-verbose', mockFlavor: 'verbose', color: '#34d399' },
-  ].entries()) {
+  ]) {
     const rec = await api('/api/models', {
       method: 'POST',
       body: JSON.stringify({ ...m, provider: 'mock', enabled: true, tags: ['示例'], pricing: { input: 1, output: 2 }, temperature: 0.7, maxTokens: 1024 }),
@@ -125,18 +120,14 @@ try {
   const userDataDir = path.join(os.tmpdir(), `dsh-shot-${Date.now()}`);
   child = spawn(
     chromePath,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-extensions',
-      '--hide-scrollbars',
-      `--window-size=${WIDTH},${HEIGHT}`,
-      `--remote-debugging-port=${PORT}`,
-      `--user-data-dir=${userDataDir}`,
-      `${BASE}/#/compare`,
-    ],
+    chromeArgs({
+      port: PORT,
+      userDataDir,
+      width: WIDTH,
+      height: HEIGHT,
+      url: `${BASE}/#/compare`,
+      extra: ['--hide-scrollbars'],
+    }),
     { stdio: 'ignore', windowsHide: true },
   );
 

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, streamRequest } from '../api';
 import { useApp } from '../state';
-import type { ChatMessage, Conversation, ConversationSummary, Metrics, ModelConfig } from '../types';
+import type { ChatMessage, Conversation, ConversationSummary, Metrics } from '../types';
 import { PROVIDER_BADGE, PROVIDER_LABEL, formatCost, formatMs, formatTokens, timeAgo, uid } from '../lib/format';
 import { AutoTextarea, Badge, Button, CopyButton, Empty, Field, Spinner, useConfirm } from '../components/ui';
 import { Markdown } from '../components/Markdown';

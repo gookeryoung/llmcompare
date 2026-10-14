@@ -41,7 +41,7 @@ async function throwHttpError(res, label) {
   } catch {
     /* ignore */
   }
-  let parsed = '';
+  let parsed;
   try {
     const j = JSON.parse(detail);
     parsed = j?.error?.message || j?.message || j?.error || '';

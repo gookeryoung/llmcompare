@@ -2,24 +2,18 @@
  * 浏览器端 UI 验证：通过 Chrome DevTools Protocol 真实驱动页面，
  * 覆盖「模型接入 / 对话 / 题库 / 横向对比 / AI 裁判 / 评测记录」的核心交互。
  *
- * 运行：node scripts/ui-check.mjs   （需要先启动服务：node server/index.mjs）
+ * 运行：pnpm run test:ui
+ *   —— 由 scripts/with-server.mjs 拉起隔离实例（独立端口 + .tmp/e2e-data），
+ *      通过环境变量 BASE 注入地址；直接 `node scripts/ui-check.mjs` 则打默认 :8787。
  * 会自动创建测试数据并在结束后清理。
  */
 import { spawn } from 'node:child_process';
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { findChrome, chromeArgs } from './lib/chrome.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8787';
-const PORT = 9333;
-
-const CHROME_CANDIDATES = [
-  path.join(process.env.LOCALAPPDATA || '', 'Google/Chrome/Application/chrome.exe'),
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  path.join(process.env['ProgramFiles(x86)'] || '', 'Microsoft/Edge/Application/msedge.exe'),
-  path.join(process.env.ProgramFiles || '', 'Microsoft/Edge/Application/msedge.exe'),
-];
+const PORT = Number(process.env.CDP_PORT || 9333);
 
 let pass = 0;
 let fail = 0;
@@ -94,7 +88,7 @@ class CDP {
   async waitFor(expression, label, timeout = 25000) {
     const deadline = Date.now() + timeout;
     for (;;) {
-      let v = false;
+      let v;
       try {
         v = await this.eval(expression);
       } catch {
@@ -117,9 +111,9 @@ const clickByText = (selector, text) => `(() => {
 
 /* ------------------------------ 主流程 ------------------------------ */
 
-const chromePath = CHROME_CANDIDATES.find((p) => p && fs.existsSync(p));
+const chromePath = findChrome();
 if (!chromePath) {
-  console.error('未找到可用的 Chrome / Edge，跳过 UI 验证。');
+  console.error('未找到可用的 Chrome / Edge，跳过 UI 验证。可用 CHROME_PATH 显式指定。');
   process.exit(0);
 }
 
@@ -174,16 +168,7 @@ try {
   const userDataDir = path.join(os.tmpdir(), `dsh-ui-check-${Date.now()}`);
   child = spawn(
     chromePath,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-extensions',
-      `--remote-debugging-port=${PORT}`,
-      `--user-data-dir=${userDataDir}`,
-      `${BASE}/#/compare`,
-    ],
+    chromeArgs({ port: PORT, userDataDir, width: 1600, height: 1000, url: `${BASE}/#/compare` }),
     { stdio: 'ignore', windowsHide: true },
   );
 

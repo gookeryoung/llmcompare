@@ -1,0 +1,30 @@
+# Docker 构建上下文排除项
+# 目标：镜像里只需要 package.json / pnpm-lock.yaml / server / web，
+# 其余（本地依赖、数据、截图、缓存）全部不进上下文，加快构建并避免泄漏 API Key。
+
+.git
+.github
+.gitignore
+.gitattributes
+
+node_modules
+**/node_modules
+
+# 运行时数据含 API Key 与评测记录，绝不进镜像
+data
+.tmp
+
+web/dist
+coverage
+docs
+*.log
+
+.eslintcache
+.cache
+.vscode
+.idea
+.DS_Store
+
+Dockerfile
+.dockerignore
+docker-compose.yml

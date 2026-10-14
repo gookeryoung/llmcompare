@@ -1,0 +1,10 @@
+# pnpm 工作区配置
+#
+# esbuild 需要执行安装脚本（下载/校验平台二进制并生成 bin 转发器），
+# pnpm 10+ 出于安全默认拦截依赖的构建脚本，因此这里显式批准。
+# 其它依赖均不需要执行安装脚本。
+allowBuilds:
+  esbuild: true
+
+onlyBuiltDependencies:
+  - esbuild

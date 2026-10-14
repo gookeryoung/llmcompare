@@ -222,15 +222,26 @@ try {
     const t = await cdp.eval(`document.querySelector('.page-title')?.textContent || ''`);
     assert(t === '横向对比', `实际: ${t}`);
   });
-  await check('模型多选卡片渲染出 3 个测试模型', async () => {
+  await check('模型多选卡片渲染出本次测试的模型', async () => {
     await cdp.waitFor(`document.querySelectorAll('.model-pick').length >= 3`, '模型卡片');
     const names = await cdp.eval(`[...document.querySelectorAll('.model-pick')].map(e=>e.textContent).join('|')`);
     assert(names.includes('UI测试·模型A') && names.includes('UI测试·模型B'), '模型名称缺失');
     return `共 ${await cdp.eval(`document.querySelectorAll('.model-pick').length`)} 个可选模型`;
   });
-  await check('默认全选已启用的模型', async () => {
-    const on = await cdp.eval(`document.querySelectorAll('.model-pick.on').length`);
-    assert(on >= 3, `已选 ${on} 个`);
+  await check('只勾选本次测试的 3 个模型（与既有数据隔离）', async () => {
+    // 不依赖「默认全选」：显式把选择收敛到本次创建的三条，避免受使用者已有模型影响
+    await cdp.eval(`(() => {
+      for (const p of [...document.querySelectorAll('.model-pick')]) {
+        const mine = /UI测试·模型[ABC]/.test(p.textContent);
+        const cb = p.querySelector('input[type=checkbox]');
+        if (cb && cb.checked !== mine) cb.click();
+      }
+      return true;
+    })()`);
+    await sleep(500);
+    const on = await cdp.eval(`[...document.querySelectorAll('.model-pick.on')].map((p) => p.textContent.replace(/\\s+/g, ' ').trim().slice(0, 16))`);
+    assert(on.length === 3, `期望选中 3 个，实际 ${on.length}：${on.join(' / ')}`);
+    return on.join(' / ');
   });
 
   console.log('\n[2] 引擎：填写问题并开始对比');

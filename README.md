@@ -28,17 +28,19 @@
 要求 Node.js ≥ 20.19。
 
 ```bash
-npm install          # 安装依赖
-npm run build        # 构建前端
-npm start            # 启动服务
+pnpm install         # 安装依赖
+pnpm build           # 构建前端
+pnpm start           # 启动服务
 ```
 
 打开 <http://127.0.0.1:8787> 即可。
 
+> 也支持 npm：`npm install && npm run build && npm start`（仓库以 `pnpm-lock.yaml` 为准，用 npm 时会重新解析依赖并生成 `package-lock.json`）。
+
 开发模式（前端热更新，后端自动重启需手动）：
 
 ```bash
-npm run dev          # API :8787 + Vite :5173
+pnpm dev             # API :8787 + Vite :5173
 ```
 
 ### 第一次使用建议
@@ -83,6 +85,7 @@ scripts/
   smoke.mjs             接口层端到端测试（33 项）
   ui-check.mjs          无头浏览器真实交互测试（25 项）
   screenshot.mjs        生成文档截图
+pnpm-workspace.yaml     已批准 esbuild 的安装脚本（见下方说明）
 data/                   运行时数据（首次启动自动创建，已 gitignore）
   models.json banks.json questions.json conversations.json runs.json settings.json
 ```
@@ -108,17 +111,27 @@ data/                   运行时数据（首次启动自动创建，已 gitigno
 ## 测试与验证
 
 ```bash
-npm start            # 另开一个终端先启动服务
-npm test             # 类型检查 + 接口测试 + 浏览器 UI 测试
+pnpm start           # 另开一个终端先启动服务
+pnpm test            # 类型检查 + 接口测试 + 浏览器 UI 测试
 ```
 
-- `npm run test:api` —— 33 项接口测试：健康检查、模型 CRUD 与密钥脱敏、流式对话、会话持久化、题库与 CSV/JSON 导入、三种格式导出、三模型并行对比、AI 裁判结构化评分、评测记录增改查、统计汇总、错误码与上游异常透传，并在结束后清理测试数据。
-- `npm run test:ui` —— 25 项浏览器测试（Chrome DevTools Protocol 真实点击/输入）：页面挂载、模型多选、从题库选题、并行流式渲染、指标区、星级评分、备注、AI 裁判回填、三种视图切换、保存记录、记录详情、对话收发、题库浏览、模型预置回填、明暗主题、窄屏响应式。
-- `npm run shots` —— 重新生成 `docs/screenshots/` 下的截图。
+- `pnpm test:api` —— 33 项接口测试：健康检查、模型 CRUD 与密钥脱敏、流式对话、会话持久化、题库与 CSV/JSON 导入、三种格式导出、三模型并行对比、AI 裁判结构化评分、评测记录增改查、统计汇总、错误码与上游异常透传，并在结束后清理测试数据。
+- `pnpm test:ui` —— 25 项浏览器测试（Chrome DevTools Protocol 真实点击/输入）：页面挂载、模型多选、从题库选题、并行流式渲染、指标区、星级评分、备注、AI 裁判回填、三种视图切换、保存记录、记录详情、对话收发、题库浏览、模型预置回填、明暗主题、窄屏响应式。测试只操作自己创建的 3 个模型，不会影响你已有的配置。
+- `pnpm shots` —— 重新生成 `docs/screenshots/` 下的截图。
 
 ---
 
 ## 常见问题
+
+**Q：`pnpm install` 报 `ERR_PNPM_IGNORED_BUILDS: Ignored build scripts: esbuild`？**
+pnpm 10 起默认拦截依赖的安装脚本，而 esbuild 需要执行 postinstall 来校验平台二进制。项目已在 `pnpm-workspace.yaml` 中显式批准：
+
+```yaml
+allowBuilds:
+  esbuild: true
+```
+
+如果该文件被覆盖或提示 `set this to true or false`（pnpm 写下的占位提示），把它改成上面的写法再执行 `pnpm install` 即可，也可以用交互式的 `pnpm approve-builds` 勾选 esbuild。
 
 **Q：连接测试失败怎么办？**
 优先检查 Base URL 是否填到了 `/v1` 这一层（例如 `https://api.deepseek.com/v1`），以及 Key 是否正确。服务端会把上游的错误信息原样带回界面，例如 `上游(DeepSeek) HTTP 401: Authentication Fails`。

@@ -165,7 +165,7 @@ try {
   });
 
   /* 启动浏览器 */
-  const userDataDir = path.join(os.tmpdir(), `dsh-ui-check-${Date.now()}`);
+  const userDataDir = path.join(os.tmpdir(), `llmcompare-ui-check-${Date.now()}`);
   child = spawn(
     chromePath,
     chromeArgs({ port: PORT, userDataDir, width: 1600, height: 1000, url: `${BASE}/#/compare` }),
@@ -201,7 +201,7 @@ try {
   await check('页面挂载成功（Sidebar 渲染）', async () => {
     await cdp.waitFor(`!!document.querySelector('.sidebar .nav-item')`, '侧边栏渲染');
     const title = await cdp.eval(`document.querySelector('.brand-name')?.textContent || ''`);
-    assert(title.includes('模型工作台'), `标题异常: ${title}`);
+    assert(title.includes('llmcompare'), `标题异常: ${title}`);
   });
   await check('顶部标题为「横向对比」', async () => {
     const t = await cdp.eval(`document.querySelector('.page-title')?.textContent || ''`);

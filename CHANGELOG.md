@@ -39,5 +39,5 @@
 - 横向对比：同一问题并行跑 N 个模型，并排/指标/表格三视图、同步滚动、星级评分与备注、AI 裁判、导出与记录留存。
 - 概览与评测记录页面，全部数据保存在本机 `data/`。
 
-[Unreleased]: https://example.com/dsh-model-tester/compare/v1.0.0...HEAD
-[1.0.0]: https://example.com/dsh-model-tester/releases/tag/v1.0.0
+[Unreleased]: https://example.com/llmcompare/compare/v1.0.0...HEAD
+[1.0.0]: https://example.com/llmcompare/releases/tag/v1.0.0

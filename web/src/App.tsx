@@ -45,10 +45,10 @@ function Shell() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">M</div>
+          <div className="brand-mark">L</div>
           <div className="brand-text">
-            <div className="brand-name">AI 模型工作台</div>
-            <div className="brand-sub">Model Workbench</div>
+            <div className="brand-name">llmcompare</div>
+            <div className="brand-sub">大模型对比分析平台</div>
           </div>
         </div>
 

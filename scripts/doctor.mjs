@@ -75,7 +75,7 @@ add(chrome ? 'ok' : 'warn', '无头浏览器', chrome || '未找到 Chrome/Edge�
 const icon = { ok: '✓', warn: '!', fail: '✗' };
 const color = { ok: '\u001b[32m', warn: '\u001b[33m', fail: '\u001b[31m' };
 const width = results.reduce((w, r) => Math.max(w, r.name.length), 0);
-console.log('\nAI 模型工作台 · 环境体检\n');
+console.log('\nllmcompare · 环境体检\n');
 for (const r of results) {
   console.log(`  ${color[r.level]}${icon[r.level]}\u001b[0m ${r.name.padEnd(width + 2)}${r.detail}`);
 }

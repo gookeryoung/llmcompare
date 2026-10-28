@@ -1,9 +1,9 @@
 {
-  "name": "dsh-model-tester",
+  "name": "llmcompare",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "AI 模型工作台 —— 模型接入、对话、题库管理、多模型横向对比",
+  "description": "llmcompare —— 大模型对比分析平台：模型接入、对话、题库管理、多模型横向对比",
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:api": "node server/index.mjs",

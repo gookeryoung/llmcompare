@@ -117,7 +117,7 @@ try {
     created.models.push(rec.id);
   }
 
-  const userDataDir = path.join(os.tmpdir(), `dsh-shot-${Date.now()}`);
+  const userDataDir = path.join(os.tmpdir(), `llmcompare-shot-${Date.now()}`);
   child = spawn(
     chromePath,
     chromeArgs({

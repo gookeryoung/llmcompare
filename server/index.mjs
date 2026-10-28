@@ -1,5 +1,5 @@
 /**
- * AI 模型工作台 —— 零依赖 HTTP 服务。
+ * llmcompare —— 大模型对比分析平台，零依赖 HTTP 服务。
  * 同时提供：/api/* 接口 与 前端静态资源（web/dist）。
  */
 import http from 'node:http';
@@ -127,7 +127,7 @@ server.on('error', (err) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`\n  AI 模型工作台已启动`);
+  console.log(`\n  llmcompare 已启动`);
   console.log(`  ➜  http://${HOST}:${PORT}`);
   console.log(`  ➜  数据目录: ${DATA_DIR}\n`);
 });

@@ -39,7 +39,7 @@ for (const file of process.argv.slice(2)) {
 }
 
 const width = rows.reduce((w, [n]) => Math.max(w, n.length), 0);
-process.stdout.write('AI 模型工作台 · 可用命令\n\n');
+process.stdout.write('llmcompare · 可用命令\n\n');
 for (const [names, desc] of rows) {
   process.stdout.write(`  ${names.padEnd(width + 2)}${desc}\n`);
 }

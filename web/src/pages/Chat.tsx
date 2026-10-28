@@ -62,6 +62,8 @@ export default function ChatPage() {
   }, [pushToast]);
 
   useEffect(() => {
+    // mount 时异步拉取会话列表，属预期副作用
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadList();
   }, [loadList]);
 

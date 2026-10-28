@@ -39,6 +39,8 @@ export default function QuestionsPage() {
   const [exportOpen, setExportOpen] = useState(false);
 
   useEffect(() => {
+    // 题库列表就绪后默认选中第一个
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!bankId && banks.length) setBankId(banks[0].id);
   }, [banks, bankId]);
 
@@ -58,6 +60,8 @@ export default function QuestionsPage() {
   }, [bankId, pushToast]);
 
   useEffect(() => {
+    // 切换题库时重新加载题目并清空选择
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
     setSelected(new Set());
   }, [load]);

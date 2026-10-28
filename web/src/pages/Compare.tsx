@@ -71,6 +71,8 @@ export default function ComparePage() {
 
   useEffect(() => {
     if (settings && !initialized) {
+      // 设置加载完成后初始化一次默认参数
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setParams({ ...settings.defaultParams });
       setJudgeModelId(settings.judgeModelId || '');
       setInitialized(true);
@@ -78,12 +80,15 @@ export default function ComparePage() {
   }, [settings, initialized]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (selected.length === 0 && enabledModels.length) setSelected(enabledModels.map((m) => m.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabledModels.length]);
 
   useEffect(() => {
     if (compareDraft) {
+      // 从题库带题进入对比页：填充草稿并复位结果
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setQuestion(compareDraft.question);
       setQuestionId(compareDraft.questionId);
       setTitle(compareDraft.title || '');
@@ -97,6 +102,8 @@ export default function ComparePage() {
   }, [compareDraft, setCompareDraft]);
 
   useEffect(() => {
+    // 题库列表就绪后默认选中第一个
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!pickBank && banks.length) setPickBank(banks[0].id);
   }, [banks, pickBank]);
 

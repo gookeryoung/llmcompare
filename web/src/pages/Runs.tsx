@@ -37,6 +37,8 @@ export default function RunsPage() {
   }, [pushToast]);
 
   useEffect(() => {
+    // mount 时异步拉取评测记录，属预期副作用
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 

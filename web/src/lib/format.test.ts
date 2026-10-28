@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   DIFFICULTY_BADGE,
   DIFFICULTY_LABEL,
@@ -168,27 +168,33 @@ describe('downloadFile', () => {
     const clicks: string[] = [];
     const appended: unknown[] = [];
     const blobs: unknown[][] = [];
-    const originals = {
-      Blob: (globalThis as any).Blob,
-      createObjectURL: (URL as any).createObjectURL,
-      revokeObjectURL: (URL as any).revokeObjectURL,
-      document: (globalThis as any).document,
-    };
 
-    (globalThis as any).Blob = class {
+    // jsdom 全局多为只读 getter，用 vi.stubGlobal 整体替换 Blob / URL
+    const FakeBlob = class {
+      parts: unknown[];
+      opts: unknown;
       constructor(parts: unknown[], opts: unknown) {
         blobs.push([parts, opts]);
+        this.parts = parts;
+        this.opts = opts;
       }
     };
-    (URL as any).createObjectURL = () => 'blob:mock';
-    (URL as any).revokeObjectURL = () => {};
-    (globalThis as any).document = {
-      createElement: () => {
-        const el: any = { style: {}, click: () => clicks.push(el.download) };
-        return el;
-      },
-      body: { appendChild: (el: unknown) => appended.push(el), removeChild: () => {} },
+    const FakeURL = {
+      createObjectURL: () => 'blob:mock',
+      revokeObjectURL: () => {},
     };
+    vi.stubGlobal('Blob', FakeBlob);
+    vi.stubGlobal('URL', FakeURL);
+    // document 上的方法可直接 spy（document 对象本身可扩展）
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+      const el: any = { tagName: tag, style: {}, click: () => clicks.push(el.download) };
+      return el;
+    }) as never);
+    const appendSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(((el: unknown) => {
+      appended.push(el);
+      return el as never;
+    }) as never);
+    const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(((el: unknown) => el as never) as never);
 
     try {
       downloadFile('对比结果.csv', 'a,b', 'text/csv;charset=utf-8');
@@ -197,11 +203,10 @@ describe('downloadFile', () => {
       expect(appended).toHaveLength(1);
       expect(clicks).toEqual(['对比结果.csv']);
     } finally {
-      (globalThis as any).Blob = originals.Blob;
-      (URL as any).createObjectURL = originals.createObjectURL;
-      (URL as any).revokeObjectURL = originals.revokeObjectURL;
-      if (originals.document === undefined) delete (globalThis as any).document;
-      else (globalThis as any).document = originals.document;
+      vi.unstubAllGlobals();
+      createElementSpy.mockRestore();
+      appendSpy.mockRestore();
+      removeChildSpy.mockRestore();
     }
   });
 });

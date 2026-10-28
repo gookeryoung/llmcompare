@@ -43,7 +43,7 @@ interface AppCtx {
 
 const Ctx = createContext<AppCtx | null>(null);
 
-function routeFromHash(): Route {
+export function routeFromHash(): Route {
   const raw = window.location.hash.replace(/^#\/?/, '').split('?')[0];
   return (ROUTES as string[]).includes(raw) ? (raw as Route) : 'dashboard';
 }
@@ -110,6 +110,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         pushToast('err', `无法连接后端服务：${err.message}`);
       }
     })();
+    // mount 时并行拉取模型与题库（setState 均在 await 之后）
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     reloadModels();
     reloadBanks();
   }, [reloadModels, reloadBanks, pushToast]);

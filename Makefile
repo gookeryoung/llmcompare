@@ -14,7 +14,7 @@ DEV_PORTS ?= $(DEV_PORT) $(WEB_PORT)
 # 前端依赖 stamp：pnpm install 成功后由 make 刷新，lock / package.json 未变时零开销跳过
 DEPS_STAMP := node_modules/.make-sync
 
-.PHONY: help sync free-dev-ports dev start build lint typecheck test test-api test-ui \
+.PHONY: help sync free-dev-ports dev start build lint typecheck test test-api test-ui e2e \
         gitkeep-check adr-check check-docs check-fast flow check clean doctor kill-port doc \
         docker push bump patch minor major
 
@@ -63,6 +63,9 @@ test-api: build ## API 冒烟测试（自动起隔离后端）
 test-ui: build ## UI 冒烟测试（构建后起服务用浏览器检查）
 	@pnpm test:ui
 
+e2e: build ## E2E 测试（Playwright：构建产物 + 隔离后端 + 真浏览器）
+	@pnpm e2e
+
 gitkeep-check: ## 校验占位目录未被清空（空目录须有 .gitkeep）
 	@uv run python -c "import pathlib,sys;ds=[p for p in map(pathlib.Path,['docs/adr','docs/requirements','docs/_static']) if p.is_dir()];bad=[str(p) for p in ds if not any(p.iterdir())];[print('gitkeep-check: 空目录缺少 .gitkeep -> '+b) for b in bad];print('gitkeep-check: 通过') if not bad else None;sys.exit(1 if bad else 0)"
 
@@ -76,7 +79,7 @@ check-fast: gitkeep-check adr-check lint typecheck ## L1 配置/内环门禁（g
 # L2 代码改动：轻量静态门禁 + 全量单测
 flow: check-fast test ## L2 代码门禁（check-fast + test）
 
-check: check-fast test-api ## 全量门禁（check-fast + test + test-api）
+check: check-fast test-api e2e ## 全量门禁（check-fast + test-api + e2e）
 
 # ── 工具 ──────────────────────────────────────────────────────────────
 

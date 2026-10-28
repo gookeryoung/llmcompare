@@ -1,16 +1,17 @@
 /**
  * 释放端口：找出占用指定端口的进程并结束它。
  *
- * 场景：`pnpm start` 被强制中断后，node 子进程可能仍持有端口，
- * 再次启动就会撞上 EADDRINUSE。此时 `pnpm kill-port` 一键清场。
+ * 场景：`make dev` / `pnpm start` 被强制中断后，node 子进程可能仍持有端口，
+ * 再次启动就会撞上 EADDRINUSE。此时 `make free-dev-ports` 一键清场。
  *
- * 用法：node scripts/kill-port.mjs [端口]   （默认取 PORT 或 8787）
+ * 用法：node scripts/kill-port.mjs [端口...]   （默认取 PORT 或 8787，可传多个）
  */
 import { execFileSync } from 'node:child_process';
 
-const port = Number(process.argv[2] || process.env.PORT || 8787);
+const ports = process.argv.slice(2).map(Number).filter(Boolean);
+if (!ports.length) ports.push(Number(process.env.PORT || 8787));
 
-function listeners() {
+function listeners(port) {
   try {
     if (process.platform === 'win32') {
       const out = execFileSync('netstat', ['-ano', '-p', 'TCP'], { encoding: 'utf8' });
@@ -31,22 +32,23 @@ function listeners() {
   }
 }
 
-const pids = listeners();
-if (!pids.length) {
-  console.log(`端口 ${port} 空闲，无需处理。`);
-  process.exit(0);
-}
-
-console.log(`端口 ${port} 被以下进程占用：${pids.join(', ')}`);
 let failed = 0;
-for (const pid of pids) {
-  try {
-    if (process.platform === 'win32') execFileSync('taskkill', ['/PID', pid, '/F', '/T'], { stdio: 'ignore' });
-    else process.kill(Number(pid), 'SIGKILL');
-    console.log(`  已结束 PID ${pid}`);
-  } catch (err) {
-    failed += 1;
-    console.error(`  结束 PID ${pid} 失败：${err.message}`);
+for (const port of ports) {
+  const pids = listeners(port);
+  if (!pids.length) {
+    console.log(`端口 ${port} 空闲，无需处理。`);
+    continue;
+  }
+  console.log(`端口 ${port} 被以下进程占用：${pids.join(', ')}`);
+  for (const pid of pids) {
+    try {
+      if (process.platform === 'win32') execFileSync('taskkill', ['/PID', pid, '/F', '/T'], { stdio: 'ignore' });
+      else process.kill(Number(pid), 'SIGKILL');
+      console.log(`  已结束 PID ${pid}`);
+    } catch (err) {
+      failed += 1;
+      console.error(`  结束 PID ${pid} 失败：${err.message}`);
+    }
   }
 }
 process.exit(failed ? 1 : 0);

@@ -1,86 +1,89 @@
-# Makefile - llmcompare project shortcuts
-# Run `make help` to list all available commands
+# Makefile - llmcompare project shortcuts (front-end + API full-stack)
+# Run `make help` to list all available commands.
+# 约定：本文件只做命令编排，跨平台 / 多行逻辑放 scripts/，保证目标一眼可读。
 
-PACKAGE := llmcompare
-COV_THRESHOLD := 95
-PYTEST_JOBS := 8  # pytest-xdist worker count; 8 by default on Windows to avoid handle exhaustion
+.DEFAULT_GOAL := help
 
-# Override with: make push REMOTES="origin codeup"
-REMOTES = $(shell git remote)
+# dev 目标绑定地址/端口，可在命令行覆盖：make dev DEV_PORT=8787 WEB_PORT=5173
+DEV_HOST ?= 127.0.0.1
+DEV_PORT ?= 8787
+WEB_PORT ?= 5173
+# `make dev` 启动前释放的端口：API 后端 DEV_PORT + Vite WEB_PORT（见 scripts/dev.mjs）
+DEV_PORTS ?= $(DEV_PORT) $(WEB_PORT)
 
-.PHONY: help sync build b clean c test cov lint typecheck typecheck-ci check check-docs check-fast flow gitkeep-check adr-check prek doc tox docker d pub bump patch minor major push
+# 前端依赖 stamp：pnpm install 成功后由 make 刷新，lock / package.json 未变时零开销跳过
+DEPS_STAMP := node_modules/.make-sync
 
-help: ## Show this help
-	@uv run python -c "import re,sys;ms=[(m.group(1),m.group(2).strip()) for f in sys.argv[1:] for l in open(f,encoding='utf-8') if (m:=re.match(r'^([a-zA-Z][\w -]*):.*?##\s*(.*)',l))];[print(f'  {n:<14} {d}') for n,d in ms]" $(MAKEFILE_LIST)
+.PHONY: help sync free-dev-ports dev start build lint typecheck test test-api test-ui \
+        gitkeep-check adr-check check-docs check-fast flow check clean doctor kill-port doc
 
-sync: ## Install development dependencies
-	uv sync --extra dev
+# ── 开发 ──────────────────────────────────────────────────────────────
 
-build b: ## Build distribution packages (wheel + sdist)
-	uv build
+help: ## 显示帮助信息
+	@node scripts/help.mjs $(MAKEFILE_LIST)
 
-clean c: ## Remove build artifacts and caches
-	rm -rf build/ dist/ wheels/ *.egg-info htmlcov/ .coverage .coverage.* coverage.xml .pytest_cache/ docs/_build/ .tox/
-	rm -rf .ruff_cache/ .pyrefly_cache/ .mypy_cache/
-	find src tests -type d -name __pycache__ -exec rm -rf {} +
-	find src tests -type f -name "*.py[oc]" -delete
+sync: $(DEPS_STAMP) ## 安装依赖（pnpm；lock / package.json 未变时跳过）
 
-test: ## Run tests (no coverage)
-	uv run pytest -m "not slow" -n $(PYTEST_JOBS)
+$(DEPS_STAMP): package.json pnpm-lock.yaml
+	pnpm install --frozen-lockfile
+	@touch $(DEPS_STAMP)
 
-cov: ## Run tests and generate an HTML coverage report
-	uv run pytest --cov --cov-report=term --cov-fail-under=$(COV_THRESHOLD) --cov-report=html -n $(PYTEST_JOBS)
-	@uv run python -c "print('Coverage report: htmlcov/index.html')"
+free-dev-ports: ## 结束占用开发端口的旧进程（API $(DEV_PORT) / Web $(WEB_PORT)；可用 DEV_PORTS 覆盖）
+	@node scripts/kill-port.mjs $(DEV_PORTS)
 
-lint: ## Lint code style (ruff)
-	uv run ruff check .
-	uv run ruff format --check .
+dev: free-dev-ports $(DEPS_STAMP) ## 开发模式：先释放旧端口，再同时启动 API 与 Vite（Ctrl+C 一起停）
+	PORT=$(DEV_PORT) WEB_PORT=$(WEB_PORT) WEB_HOST=$(DEV_HOST) node scripts/dev.mjs
 
-typecheck: ## Type check (pyrefly)
-	uv run pyrefly check
+start: ## 生产模式：单进程同时服务 /api/* 与 web/dist 静态资源
+	@pnpm start
 
-typecheck-ci: ## Type check (pyrefly, CI platform linux - catch cross-platform issues)
-	uv run pyrefly check --python-platform linux
+kill-port: ## 释放端口（默认 PORT 或 8787；用法: make kill-port PORT=8787）
+	@node scripts/kill-port.mjs $(PORT)
+
+# ── 构建 ──────────────────────────────────────────────────────────────
+
+build: $(DEPS_STAMP) ## 构建前端（Vite，产物输出到 web/dist/）
+	@pnpm build
+
+# ── 质量门禁 ──────────────────────────────────────────────────────────
+
+lint: ## 代码风格检查（ESLint，带缓存）
+	@pnpm lint
+
+typecheck: ## 类型检查（tsc --noEmit）
+	@pnpm typecheck
+
+test: ## 单元测试 + 覆盖率（vitest，含 web/src/lib 覆盖率门槛）
+	@pnpm test:unit
+
+test-api: build ## API 冒烟测试（自动起隔离后端）
+	@pnpm test:api
+
+test-ui: build ## UI 冒烟测试（构建后起服务用浏览器检查）
+	@pnpm test:ui
 
 gitkeep-check: ## 校验占位目录未被清空（空目录须有 .gitkeep）
 	@uv run python -c "import pathlib,sys;ds=[p for p in map(pathlib.Path,['docs/adr','docs/requirements','docs/_static']) if p.is_dir()];bad=[str(p) for p in ds if not any(p.iterdir())];[print('gitkeep-check: 空目录缺少 .gitkeep -> '+b) for b in bad];print('gitkeep-check: 通过') if not bad else None;sys.exit(1 if bad else 0)"
 
 adr-check: ## 校验 ADR 编号/命名与索引登记
-	@uv run python -c "import pathlib,re,sys;d=pathlib.Path('docs/adr');fs=[p for p in sorted(d.glob('*.md')) if p.name!='README.md'] if d.is_dir() else [];ns=[p.name for p in fs];idx=(d/'README.md').read_text(encoding='utf-8') if (d/'README.md').is_file() else '';dups=sorted({n[:4] for n in ns if sum(m[:4]==n[:4] for m in ns)>1});bad=[f'{n}: 文件名应为 NNNN-<topic>.md' for n in ns if not re.fullmatch(r'\d{4}-[\w-]+\.md',n)]+[f'编号 {x} 重复' for x in dups]+(['docs/adr/README.md 缺失'] if fs and not (d/'README.md').is_file() else [])+[f'{n}: 未登记到 docs/adr/README.md 索引' for n in ns if n not in idx];[print('adr-check: '+b) for b in bad];print(f'adr-check: 通过（{len(fs)} 个 ADR）') if not bad else None;sys.exit(1 if bad else 0)"
+	@uv run python -c "import pathlib,re,sys;d=pathlib.Path('docs/adr');fs=[p for p in sorted(d.glob('*.md')) if p.name not in ('README.md','template.md')] if d.is_dir() else [];ns=[p.name for p in fs];idx=(d/'README.md').read_text(encoding='utf-8') if (d/'README.md').is_file() else '';dups=sorted({n[:4] for n in ns if sum(m[:4]==n[:4] for m in ns)>1});bad=[f'{n}: 文件名应为 NNNN-<topic>.md' for n in ns if not re.fullmatch(r'\d{4}-[\w-]+\.md',n)]+[f'编号 {x} 重复' for x in dups]+(['docs/adr/README.md 缺失'] if fs and not (d/'README.md').is_file() else [])+[f'{n}: 未登记到 docs/adr/README.md 索引' for n in ns if n not in idx];[print('adr-check: '+b) for b in bad];print(f'adr-check: 通过（{len(fs)} 个 ADR）') if not bad else None;sys.exit(1 if bad else 0)"
 
+# L0 文档改动：只跑文档级校验
 check-docs: gitkeep-check adr-check ## L0 文档门禁（gitkeep-check + adr-check）
+# L1 配置改动：轻量静态门禁（无测试）
 check-fast: gitkeep-check adr-check lint typecheck ## L1 配置/内环门禁（gitkeep + adr + lint + typecheck）
+# L2 代码改动：轻量静态门禁 + 全量单测
 flow: check-fast test ## L2 代码门禁（check-fast + test）
 
-check: check-fast typecheck-ci cov ## 全量门禁（check-fast + typecheck-ci + cov）
+check: check-fast test-api ## 全量门禁（check-fast + test + test-api）
 
-prek: ## Run pre-commit hooks on all files (prek)
-	uv run prek run -a
+# ── 工具 ──────────────────────────────────────────────────────────────
 
-docker d: ## Build the Docker image
-	docker build -t llmcompare:latest .
+clean: ## 清理构建产物、缓存与依赖
+	@node scripts/clean.mjs
 
-doc: ## Build the Sphinx documentation
-	uv run sphinx-build -b html docs docs/_build/html
+doctor: ## 环境自检（node/pnpm 版本、端口占用等）
+	@node scripts/doctor.mjs
 
-
-tox: ## Run multi-version tests (tox)
-	uvx tox -p auto
-
-BUMP_PART := $(filter-out bump,$(MAKECMDGOALS))
-
-bump: ## Bump version (default patch, usage: make bump [minor|major])
-	@uvx bump-my-version bump $(if $(BUMP_PART),$(firstword $(BUMP_PART)),patch) --tag
-	uv sync --extra dev
-	git add uv.lock
-	-git diff --cached --quiet || git commit -m "chore: sync uv.lock after version bump"
-
-patch minor major:
-	@:
-
-pub:  ## Upload to PyPI
-	uvx twine upload dist/*.whl dist/*.tar.gz
-
-push: ## Push code to all remotes (continues on failure, non-zero exit if any failed)
-	@uv run python -c "import subprocess as sp,sys; remotes='$(REMOTES)'.split(); failed=[]; [failed.append(r) for r in remotes if print(f'Pushing {r}...',flush=True) or sp.run(['git','push',r]).returncode or sp.run(['git','push',r,'--tags']).returncode]; print('Failed remotes: '+', '.join(failed) if failed else 'All remotes pushed.'); sys.exit(1 if failed else 0)"
-
+doc: ## 构建 Sphinx 文档
+	@uv run sphinx-build -b html docs docs/_build/html

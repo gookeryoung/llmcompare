@@ -20,9 +20,12 @@ export default tseslint.config(
     ignores: [
       'node_modules/**',
       'web/dist/**',
+      'dist/**',
       'data/**',
       '.tmp/**',
+      '.venv/**',
       'coverage/**',
+      'htmlcov/**',
       'docs/**',
       '**/*.d.ts',
     ],

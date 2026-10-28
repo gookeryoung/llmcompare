@@ -14,7 +14,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
   },
   server: {
-    host: '127.0.0.1',
+    host: process.env.WEB_HOST || '127.0.0.1',
     port: Number(process.env.WEB_PORT || 5173),
     strictPort: false,
     proxy: {

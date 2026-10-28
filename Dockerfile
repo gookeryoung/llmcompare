@@ -1,60 +1,33 @@
-# CI/容器化用 Dockerfile
+# CI/容器化用 Dockerfile —— 多阶段：构建前端 → 轻量运行时
 # 使用国内镜像源拉取基础镜像（如不需要可替换为官方镜像）
 # 备选镜像源前缀：docker.1ms.run / dockerpull.com / docker.xuanyuan.me
-FROM docker.m.daocloud.io/python:3.14-slim
+FROM docker.m.daocloud.io/node:22-slim AS build
 
-# ---- 国内镜像源 ----
-ENV PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
-ENV PIP_TRUSTED_HOST=mirrors.cloud.tencent.com
-ENV UV_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
-ENV UV_TRUSTED_HOST=mirrors.cloud.tencent.com
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
 
-# 环境变量：非交互 + 路径配置
-ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=C.UTF-8 \
-    LC_ALL=C.UTF-8 \
-    UV_LINK_MODE=copy \
-    UV_CACHE_DIR=/uv-cache \
-    UV_PROJECT_ENVIRONMENT=/opt/venv \
-    PATH="/opt/venv/bin:${PATH}"
+COPY web ./web
+RUN pnpm build
 
-# 配置 apt 国内镜像（华为云）并安装系统依赖
-RUN sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g' /etc/apt/sources.list.d/debian.sources \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        curl \
-        git \
-        build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# ---- 运行时：server 零依赖（纯 node 内置模块），无需 node_modules ----
+FROM docker.m.daocloud.io/node:22-slim
 
+ENV NODE_ENV=production \
+    PORT=8787 \
+    HOST=0.0.0.0 \
+    DATA_DIR=/app/data
 
-# 安装 uv（国内镜像）
-RUN pip install --no-cache-dir uv -i https://mirrors.cloud.tencent.com/pypi/simple/
+WORKDIR /app
+COPY --from=build /app/web/dist ./web/dist
+COPY server ./server
 
-# 预装项目所需 Python 版本（min==max 时只装一次）
-RUN uv python install 3.12 3.14
+RUN mkdir -p /app/data && chown -R node:node /app
+USER node
 
-# 预装项目 dev 依赖（仅复制依赖描述文件，利用 Docker 层缓存）
-WORKDIR /workspace
-COPY pyproject.toml tox.ini README.md ./
-COPY src/ ./src/
+EXPOSE 8787
+VOLUME ["/app/data"]
 
-# 同步依赖到 /opt/venv（CI 时直接复用）
-# 有 uv.lock 时用 --frozen 锁定版本保证可复现；没有则退化为常规解析（不要静默吞错）
-RUN if [ -f uv.lock ]; then \
-        uv sync --frozen --no-install-project; \
-    else \
-        uv sync --no-install-project; \
-    fi
+HEALTHCHECK --interval=30s --timeout=3s CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/api/models').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-# 持久化 uv 缓存目录（CI 可挂载到宿主机加速）
-VOLUME ["/uv-cache"]
-
-# 以非 root 用户运行（最小权限）
-RUN useradd --create-home --uid 1000 appuser \
-    && chown -R appuser /workspace /uv-cache /opt/venv
-USER appuser
-
-# 默认入口
-CMD ["/bin/bash"]
+CMD ["node", "server/index.mjs"]

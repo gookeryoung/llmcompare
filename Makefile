@@ -15,7 +15,8 @@ DEV_PORTS ?= $(DEV_PORT) $(WEB_PORT)
 DEPS_STAMP := node_modules/.make-sync
 
 .PHONY: help sync free-dev-ports dev start build lint typecheck test test-api test-ui \
-        gitkeep-check adr-check check-docs check-fast flow check clean doctor kill-port doc
+        gitkeep-check adr-check check-docs check-fast flow check clean doctor kill-port doc \
+        docker push bump patch minor major
 
 # ── 开发 ──────────────────────────────────────────────────────────────
 
@@ -87,3 +88,19 @@ doctor: ## 环境自检（node/pnpm 版本、端口占用等）
 
 doc: ## 构建 Sphinx 文档
 	@uv run sphinx-build -b html docs docs/_build/html
+
+# ── 发布 / 推送 ────────────────────────────────────────────────────────
+
+push: ## 推送当前分支到全部 remote（含 tags；可用 make push REMOTES="origin github" 指定）
+	@node scripts/push.mjs $(REMOTES)
+
+BUMP_PART := $(filter-out bump,$(MAKECMDGOALS))
+
+bump: ## 版本号 bump（默认 patch，用法: make bump [minor|major]，自动提交并打 tag）
+	@pnpm version $(if $(BUMP_PART),$(firstword $(BUMP_PART)),patch)
+
+patch minor major:
+	@:
+
+docker d: ## 构建生产镜像（多阶段：pnpm build → node 运行）
+	docker build -t llmcompare:latest .

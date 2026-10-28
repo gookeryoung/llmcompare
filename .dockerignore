@@ -1,82 +1,15 @@
-# 版本控制
-.git
-.gitignore
-.github
-
-# Python 缓存与构建产物
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-*.egg-info
-*.egg
-dist
-build
-.eggs
-
-# 测试与覆盖率
-.pytest_cache
-.coverage
-.coverage.*
-htmlcov
-.tox
-coverage.xml
-
-# 前端依赖与构建产物
-frontend/node_modules
-frontend/dist
-frontend/.vite
-frontend/coverage
-frontend/.eslintcache
-frontend/test-results
-frontend/playwright-report
-*.tsbuildinfo
-.e2e
-reports
-
-# 本地研究数据与模型产物
-data
-*.db
-*.db-wal
-*.db-shm
-*.sqlite
-*.parquet
-*.joblib
-*.pkl
-logs
-*.log
-
-# 运行期配置与备份归档
-.env
-.env.*
-backups
-
-
-# 工作区元数据
-.workbuddy
-.trae
-.claude
-
-# 虚拟环境
+node_modules
+web/dist
+web/node_modules
 .venv
-venv
-env
-
-# 工具缓存
-.uv-cache
+data
+dist
+coverage
+htmlcov
+docs/_build
+.git
+.tox
 .ruff_cache
 .pyrefly_cache
-.mypy_cache
-
-# IDE 与编辑器
-.idea
-.vscode
-*.swp
-*.swo
-
-# 文档（按需保留）
-docs
-
-# 系统文件
-.DS_Store
-Thumbs.db
+.pytest_cache
+*.log

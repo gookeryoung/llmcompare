@@ -1,43 +1,92 @@
-# ── 依赖与构建产物 ────────────────────────────────────────────
-node_modules/
-web/dist/
-.tmp/
+# Python-generated files
+__pycache__/
+*.py[ocd]
+build/
+dist/
+wheels/
+*.egg-info
 
-# ── 运行时数据 ───────────────────────────────────────────────
-# 模型密钥、题库与评测记录，一律不入库（首次启动自动生成）
-data/
+# Virtual environments
+.venv
 
-# ── 测试与覆盖率 ─────────────────────────────────────────────
-coverage/
-*.lcov
-.vitest-cache/
+# 测试与覆盖率
+.coverage
+.coverage.*
 htmlcov/
+coverage.xml
+.tox/
 
-# ── 工具缓存 ─────────────────────────────────────────────────
-.eslintcache
-.cache/
-.vite/
+# 工具缓存
+.eslintcache/
+.mypy_cache/
+.pnpm-store/
+.pytmp/
+.pytest_cache/
+.pyrefly_cache/
+.ruff_cache/
+.uv-cache/
+.vitest-cache/
 
-# ── 环境变量与凭证（勿提交）──────────────────────────────────
-.env
-.env.*
-# 但模板必须入库：使用者据此初始化自己的 .env
-!.env.example
-
-# ── 编辑器 / 系统 ────────────────────────────────────────────
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.swp
-
-# ── 日志 ─────────────────────────────────────────────────────
-*.log
-npm-debug.log*
-pnpm-debug.log*
-
-# ── 冗余 lock 文件（已用 pnpm，不再用 npm）────────────────────
+# --- Node / frontend ---
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+frontend/.eslintcache
+frontend/package-lock.json
+*.tsbuildinfo
 package-lock.json
 
-# ── 截图生成的临时裁切图（仅 _ 前缀，正式截图需入库）─────────
-docs/screenshots/_*
+# --- E2E（Playwright）---
+.e2e/
+frontend/test-results/
+frontend/playwright-report/
+frontend/e2e-report/
+reports/
+
+# --- Data & artifacts（绝不提交）---
+# 数据库为本地研究数据，体积可达数百 MB
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.parquet
+*.joblib
+*.pkl
+*.log
+logs/
+
+# IDE
+.idea/
+*_profile.html
+
+# 本地协作产物一律不入库
+.trae/*
+!.trae/rules/
+!.trae/skills/
+.claude/
+.workbuddy/
+
+# --- OS / editor ---
+Thumbs.db
+desktop.ini
+.DS_Store
+.idea/
+.vscode/
+*.bak
+*backup-*.tar.gz
+pytest-of-*
+
+# --- 本地环境与凭证 ---
+.env
+.env.local
+.env.*
+# 示例配置必须入库（.env.* 会误伤它）
+!.env.example
+!deploy/.env.prod.example
+
+# Sphinx 文档构建输出
+docs/_build/
+.preview

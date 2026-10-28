@@ -1,46 +1,60 @@
-# ─────────────────────────────────────────────────────────────
-# 构建阶段：只装依赖并产出 web/dist
-# ─────────────────────────────────────────────────────────────
-FROM node:22-alpine AS web
+# CI/容器化用 Dockerfile
+# 使用国内镜像源拉取基础镜像（如不需要可替换为官方镜像）
+# 备选镜像源前缀：docker.1ms.run / dockerpull.com / docker.xuanyuan.me
+FROM docker.m.daocloud.io/python:3.14-slim
 
-WORKDIR /app
+# ---- 国内镜像源 ----
+ENV PIP_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
+ENV PIP_TRUSTED_HOST=mirrors.cloud.tencent.com
+ENV UV_INDEX_URL=https://mirrors.cloud.tencent.com/pypi/simple
+ENV UV_TRUSTED_HOST=mirrors.cloud.tencent.com
 
-# 显式安装 pnpm：Node 25 起发行版不再内置 corepack，
-# 这里不依赖 corepack，保证镜像行为与版本号可预期
-RUN npm i -g pnpm@12.4.2
+# 环境变量：非交互 + 路径配置
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    UV_LINK_MODE=copy \
+    UV_CACHE_DIR=/uv-cache \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH="/opt/venv/bin:${PATH}"
 
-# 先复制清单文件，让依赖层在源码变动时仍能命中缓存
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-RUN pnpm install --frozen-lockfile
+# 配置 apt 国内镜像（华为云）并安装系统依赖
+RUN sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY web ./web
-RUN pnpm run build
 
-# ─────────────────────────────────────────────────────────────
-# 运行阶段：服务端零运行时依赖，镜像里不需要 node_modules
-# ─────────────────────────────────────────────────────────────
-FROM node:22-alpine
+# 安装 uv（国内镜像）
+RUN pip install --no-cache-dir uv -i https://mirrors.cloud.tencent.com/pypi/simple/
 
-ENV NODE_ENV=production \
-    PORT=8787 \
-    HOST=0.0.0.0 \
-    DATA_DIR=/data
+# 预装项目所需 Python 版本（min==max 时只装一次）
+RUN uv python install 3.12 3.14
 
-WORKDIR /app
+# 预装项目 dev 依赖（仅复制依赖描述文件，利用 Docker 层缓存）
+WORKDIR /workspace
+COPY pyproject.toml tox.ini README.md ./
+COPY src/ ./src/
 
-COPY package.json ./
-COPY server ./server
-COPY --from=web /app/web/dist ./web/dist
+# 同步依赖到 /opt/venv（CI 时直接复用）
+# 有 uv.lock 时用 --frozen 锁定版本保证可复现；没有则退化为常规解析（不要静默吞错）
+RUN if [ -f uv.lock ]; then \
+        uv sync --frozen --no-install-project; \
+    else \
+        uv sync --no-install-project; \
+    fi
 
-# 数据目录需要可写：模型配置（含 API Key）、题库、评测记录都在这里
-RUN mkdir -p /data && chown -R node:node /data /app
+# 持久化 uv 缓存目录（CI 可挂载到宿主机加速）
+VOLUME ["/uv-cache"]
 
-USER node
+# 以非 root 用户运行（最小权限）
+RUN useradd --create-home --uid 1000 appuser \
+    && chown -R appuser /workspace /uv-cache /opt/venv
+USER appuser
 
-EXPOSE 8787
-VOLUME ["/data"]
-
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8787)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-
-CMD ["node", "server/index.mjs"]
+# 默认入口
+CMD ["/bin/bash"]

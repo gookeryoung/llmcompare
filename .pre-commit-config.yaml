@@ -1,50 +1,21 @@
-# pre-commit 配置（prek 亦可直接消费本文件）
-#
-# 安装：
-#   pipx install pre-commit && pre-commit install      # 或
-#   uv tool install prek && prek install
-# 手动全量执行：
-#   pre-commit run --all-files
-#
-# 设计取舍：本地钩子走 `language: system` 直接调用仓库已装好的工具，
-# 不为 lint 再维护一套 Python 依赖；只有通用文本卫生交给官方 hooks 仓库。
-
+# prek / pre-commit 配置
+# See https://pre-commit.com for more information
 repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff 版本 - 与 pyproject.toml 保持同步
+    rev: v0.16.8
+    hooks:
+      # 运行 linter
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      # 运行格式化
+      - id: ruff-format
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: check-merge-conflict
-      - id: end-of-file-fixer
+      - id: debug-statements
+      - id: fix-byte-order-marker
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
-      - id: check-added-large-files
-        args: ['--maxkb=2048']
-      # data/ 存放真实 API Key，任何情况下都不该被提交
-      - id: detect-private-key
-        exclude: ^docs/
-
-  - repo: local
-    hooks:
-      # 只对本次暂存的 ts/tsx/mjs 跑增量检查，保证提交速度
-      - id: eslint
-        name: ESLint（自动修复）
-        entry: pnpm exec eslint --fix
-        language: system
-        files: \.(ts|tsx|mjs|js)$
-        exclude: ^(web/dist|node_modules|coverage|docs)/
-
-      # 类型检查是全局语义，无法增量，故忽略文件列表整体执行
-      - id: typecheck
-        name: TypeScript 类型检查
-        entry: pnpm run typecheck
-        language: system
-        files: \.(ts|tsx)$
-        pass_filenames: false
-
-      # 改了服务端或前端源码就顺手跑一遍接口级回归（约 3 秒，不依赖 data/）
-      - id: smoke-api
-        name: 接口端到端冒烟
-        entry: pnpm run test:api
-        language: system
-        files: ^(server|web/src)/.*\.(mjs|ts|tsx)$
-        pass_filenames: false
+      - id: end-of-file-fixer

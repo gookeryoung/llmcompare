@@ -2,96 +2,102 @@ name: CI
 
 on:
   push:
-    branches: [main, master, develop]
-    # 路径过滤：只对真正影响运行的文件变化触发，docs/截图/README 改动不占用 runner
-    paths:
-      - 'server/**'
-      - 'web/src/**'
-      - 'web/index.html'
-      - 'web/vite.config.ts'
-      - 'web/tsconfig.json'
-      - 'scripts/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.npmrc'
-      - 'eslint.config.js'
-      - 'vitest.config.ts'
+    branches: [main, develop]
+    # Skip CI for changes that cannot affect lint/test results (e.g. docs)
+    paths: &ci_paths
+      - 'src/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'pyrefly.toml'
+      - 'pytest.ini'
+      - 'ruff.toml'
+      - '.coveragerc'
+      - '.pre-commit-config.yaml'
       - 'Makefile'
       - '.github/workflows/ci.yml'
   pull_request:
-    branches: [main, master, develop]
-    paths:
-      - 'server/**'
-      - 'web/src/**'
-      - 'web/index.html'
-      - 'web/vite.config.ts'
-      - 'web/tsconfig.json'
-      - 'scripts/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.npmrc'
-      - 'eslint.config.js'
-      - 'vitest.config.ts'
-      - 'Makefile'
-      - '.github/workflows/ci.yml'
-  workflow_dispatch: # 手动触发可绕过 paths 过滤跑全量
+    branches: [main, develop]
+    paths: *ci_paths
+  # Allow manual full runs (bypasses the paths filter)
+  workflow_dispatch:
+
+# Least privilege: CI only needs read access to the repository
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  check:
-    name: Check (typecheck + lint + unit + api + ui)
+  lint:
+    name: Lint & Typecheck
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
-      # 不传 version：由 package.json 的 packageManager 字段决定 pnpm 版本，
-      # 同时传两者会让 action-setup 报 "Multiple versions of pnpm specified"
-      - name: Install pnpm
-        uses: pnpm/action-setup@v6.1.0
-
-      - name: Setup Node
-        uses: actions/setup-node@v7.1.0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
         with:
-          node-version: '22'
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
-      # 注意：本仓库刻意保留 .npmrc 的 npmmirror 镜像，
-      # 因为 pnpm-lock.yaml 的 resolution 里带 tarball URL（域名即 npmmirror），
-      # 换成官方源会触发 pnpm 12 的 ERR_PNPM_LOCKFILE_RESOLUTION_VERIFICATION。
-      # 代价是海外 runner 下载稍慢，换来本地与 CI 的依赖树完全一致。
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Typecheck
-        run: pnpm run typecheck
-
-      - name: ESLint
-        run: pnpm run lint
-
-      - name: Unit tests + coverage
-        run: pnpm run test:unit
-
-      - name: API end-to-end (isolated server + temp DATA_DIR)
-        run: pnpm run test:api
-
-      # ubuntu-latest 预装 Google Chrome；显式指定避免探测逻辑差异。
-      # 容器/无沙箱环境下 scripts/lib/chrome.mjs 会自动追加 --no-sandbox。
-      - name: Browser UI end-to-end
+      - name: Sync dependencies
         env:
-          CHROME_PATH: /usr/bin/google-chrome
-        run: pnpm run test:ui
+          UV_DEFAULT_INDEX: https://pypi.org/simple
+        run: uv sync --frozen --extra lint
 
-      - name: Upload coverage report
-        if: failure()
-        uses: actions/upload-artifact@v7
+      - name: Cache ruff
+        uses: actions/cache@v6
         with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
+          path: .ruff_cache
+          key: ruff-${{ runner.os }}-${{ hashFiles('pyproject.toml','ruff.toml') }}
+
+      - name: Ruff check + format
+        run: |
+          uv run ruff check --silent src tests --cache-dir .ruff_cache
+          uv run ruff format --check src tests
+
+      - name: Cache pyrefly
+        uses: actions/cache@v6
+        with:
+          path: .pyrefly_cache
+          key: pyrefly-${{ runner.os }}-${{ hashFiles('pyrefly.toml','pyproject.toml','src/**/*.py') }}
+          restore-keys: |
+            pyrefly-${{ runner.os }}-
+
+      - name: Pyrefly check (parallel)
+        run: uv run pyrefly check -j 0
+
+  test:
+    name: Test (Python 3.12 & 3.14)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      
+
+      - name: Sync dependencies
+        env:
+          UV_DEFAULT_INDEX: https://pypi.org/simple
+        run: uv sync --frozen --extra test --python ${{ matrix.python-version }}
+
+      - name: Run tests
+        
+        run: uv run pytest -m "not slow" --cov=llmcompare --cov-fail-under=95 --cov-report=term-missing

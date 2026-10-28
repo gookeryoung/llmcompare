@@ -1,30 +1,82 @@
-# Docker 构建上下文排除项
-# 目标：镜像里只需要 package.json / pnpm-lock.yaml / server / web，
-# 其余（本地依赖、数据、截图、缓存）全部不进上下文，加快构建并避免泄漏 API Key。
-
+# 版本控制
 .git
-.github
 .gitignore
-.gitattributes
+.github
 
-node_modules
-**/node_modules
+# Python 缓存与构建产物
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+*.egg
+dist
+build
+.eggs
 
-# 运行时数据含 API Key 与评测记录，绝不进镜像
+# 测试与覆盖率
+.pytest_cache
+.coverage
+.coverage.*
+htmlcov
+.tox
+coverage.xml
+
+# 前端依赖与构建产物
+frontend/node_modules
+frontend/dist
+frontend/.vite
+frontend/coverage
+frontend/.eslintcache
+frontend/test-results
+frontend/playwright-report
+*.tsbuildinfo
+.e2e
+reports
+
+# 本地研究数据与模型产物
 data
-.tmp
-
-web/dist
-coverage
-docs
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.parquet
+*.joblib
+*.pkl
+logs
 *.log
 
-.eslintcache
-.cache
-.vscode
-.idea
-.DS_Store
+# 运行期配置与备份归档
+.env
+.env.*
+backups
 
-Dockerfile
-.dockerignore
-docker-compose.yml
+
+# 工作区元数据
+.workbuddy
+.trae
+.claude
+
+# 虚拟环境
+.venv
+venv
+env
+
+# 工具缓存
+.uv-cache
+.ruff_cache
+.pyrefly_cache
+.mypy_cache
+
+# IDE 与编辑器
+.idea
+.vscode
+*.swp
+*.swo
+
+# 文档（按需保留）
+docs
+
+# 系统文件
+.DS_Store
+Thumbs.db

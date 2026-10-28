@@ -1,31 +1,34 @@
+# Dependabot 自动依赖更新
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates
 version: 2
 updates:
-  - package-ecosystem: npm
+  # pip 依赖：uv.lock 由 Dependabot 无法直接更新，改用 uv 官方建议的
+  # `pip` 生态扫描 pyproject.toml 直接依赖；lockfile 同步由本地 uv lock 完成
+  - package-ecosystem: pip
     directory: /
     schedule:
       interval: weekly
-      day: monday
-      time: '09:00'
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
-    versioning-strategy: increase
     commit-message:
-      prefix: 'chore(deps)'
-    # 主版本升级往往伴随破坏性变更，交给人工评估，不自动开 PR
-    ignore:
-      - dependency-name: '*'
-        update-types: ['version-update:semver-major']
+      prefix: chore
+      include: scope
     groups:
-      eslint:
-        patterns: ['eslint*', '@eslint/*', 'typescript-eslint', 'globals']
-      testing:
-        patterns: ['vitest', '@vitest/*']
-      react:
-        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
-
+      dev-dependencies:
+        dependency-type: development
+  # GitHub Actions：workflow 内 action 版本对齐
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: monthly
+      interval: weekly
     commit-message:
-      prefix: 'chore(ci)'
+      prefix: ci
+  # 前端依赖：Dependabot 的 npm 生态同时支持 pnpm-lock.yaml
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      frontend-dependencies:
+        patterns: ["*"]
